@@ -1,11 +1,11 @@
-package routes
+package products
 
 import (
 	handlers "Orderly/internal/handlers/products"
 	"github.com/gin-gonic/gin"
 )
 
-func RegisterRoutes(router *gin.Engine, productHandler *handlers.ProductHandler) {
+func SetupProductRoutes(router *gin.Engine, productHandler *handlers.ProductHandler) {
 	productRoutes := router.Group("/products")
 	{
 		productRoutes.POST("/", productHandler.CreateProduct)
