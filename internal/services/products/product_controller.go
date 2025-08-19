@@ -21,7 +21,7 @@ func (s *ProductService) CreateProduct(product *models.Product) error {
 	return s.repo.Create(product)
 }
 
-func (s *ProductService) GetAllProducts() ([]models.Product, error) {
+func (s *ProductService) GetAllProducts() ([]models.GetProducts, error) {
 	return s.repo.GetAll()
 }
 

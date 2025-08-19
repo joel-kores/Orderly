@@ -1,24 +1,30 @@
-FROM golang:1.21-alpine AS builder
+# Build stage
+FROM golang:1.23-alpine AS builder
 LABEL authors="Joel Kores"
-
-ENTRYPOINT ["top", "-b"]
 
 WORKDIR /app
 
+# Copy and download dependencies
 COPY go.mod go.sum ./
-
 RUN go mod download
 
+# Copy source code
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o my-go-app .
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -o Orderly ./cmd/main.go
 
+# Runtime stage
 FROM alpine:latest
 
 WORKDIR /root/
 
-COPY --from=builder /app/my-go-app .
+# Copy the binary and .env file
+COPY --from=builder /app/Orderly .
+COPY --from=builder /app/.env .
 
+# Expose the application port
 EXPOSE 8080
 
-CMD ["./my-go-app"]
+# Run the application
+CMD ["./Orderly"]

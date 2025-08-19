@@ -25,6 +25,15 @@ func NewAuthHandler(oauth2Config *oauth2.Config, verifier *oidc.IDTokenVerifier,
 	}
 }
 
+// Login godoc
+//	@Summary		Redirect user to authentication provider
+//	@Description	Generates an OAuth state and redirects user to authentication provider
+//	@Tags			auth
+//	@Accept			json
+//	@Produce		json
+//	@Success		307	{string}	string	"Redirecting"
+//	@Failure		500	{object}	map[string]string
+//	@Router			/auth/login [get]
 func (h *AuthHandler) Login(c *gin.Context) {
 
 	state, err := generateRandomState()
@@ -39,6 +48,19 @@ func (h *AuthHandler) Login(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
+// AuthCallback godoc
+//	@Summary		Handle authentication callback
+//	@Description	Exchanges code for token and authenticates user
+//	@Tags			auth
+//	@Security		OAuth2Password
+//	@Accept			json
+//	@Produce		json
+//	@Param			state	query		string	true	"OAuth State"
+//	@Param			code	query		string	true	"Authorization Code"
+//	@Success		200		{object}	map[string]interface{}
+//	@Failure		400		{object}	map[string]string
+//	@Failure		500		{object}	map[string]string
+//	@Router			/auth/callback [get]
 func (h *AuthHandler) AuthCallback(c *gin.Context) {
 	state := c.Query("state")
 	cookieState, err := c.Cookie("oauthstate")

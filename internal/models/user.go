@@ -1,5 +1,6 @@
 package models
 
+// User represents a system user
 type User struct {
 	CommonFields
 	Name     string  `gorm:"not null" json:"name"`

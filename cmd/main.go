@@ -21,7 +21,9 @@ import (
 	services2 "Orderly/internal/services/orders"
 	services "Orderly/internal/services/products"
 	"context"
+	"fmt"
 	"github.com/coreos/go-oidc"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	swaggerFiles "github.com/swaggo/files"
@@ -30,7 +32,9 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
+	"math"
 	"os"
+	"time"
 )
 
 func LoadEnv() {
@@ -38,6 +42,26 @@ func LoadEnv() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+}
+
+func ConnectToDB(dsn string) (*gorm.DB, error) {
+	const maxRetries = 5
+	var db *gorm.DB
+	var err error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+		if err == nil {
+			log.Println("Database connection successful.")
+			return db, nil
+		}
+		log.Printf("Database connection failed (attempt %d/%d): %v", attempt, maxRetries, err)
+		sleepTime := time.Second * time.Duration(math.Pow(2, float64(attempt)))
+		log.Printf("Retrying in %.0f seconds...", sleepTime.Seconds())
+		time.Sleep(sleepTime)
+	}
+
+	return nil, fmt.Errorf("failed to connect to database after %d attempts: %w", maxRetries, err)
 }
 
 func main() {
@@ -49,8 +73,15 @@ func main() {
 	docs.SwaggerInfo.Schemes = []string{"http", "https"}
 	docs.SwaggerInfo.BasePath = "/"
 
-	dsn := "host=localhost user=admin password=password dbname=testOrderly port=5432 sslmode=disable"
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	dsn := fmt.Sprintf(
+		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_PASSWORD"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_PORT"),
+	)
+	db, err := ConnectToDB(dsn)
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -105,13 +136,24 @@ func main() {
 	orderItemHandler := order_items.NewOrderItemHandler(orderItemService)
 	orderHandler := handlers2.NewOrderHandler(orderService)
 
+	port := os.Getenv("PORT")
+	addr := fmt.Sprintf(":%s", port)
+
 	router := gin.Default()
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:8080", "http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Authorization", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 	router.GET("/health", handlers3.Healthcheck)
 	routes.SetupRoutes(router, productHandler, categoryHandler, orderItemHandler, orderHandler, userHandler)
 
 	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
-	log.Println("Server is running on :8080")
-	if err = router.Run(":8080"); err != nil {
+	log.Println("Server is running on port", addr)
+	if err = router.Run(addr); err != nil {
 		log.Fatal(err)
 	}
 }

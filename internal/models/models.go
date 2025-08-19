@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// CommonFields contains common metadata fields
 type CommonFields struct {
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
